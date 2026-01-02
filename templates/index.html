@@ -450,13 +450,31 @@
         </div>
 
         <div class="main-content">
+	    <div id="statsPanel" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div>
+                    <strong>📊 CPU Usage</strong><br>
+                    <span id="cpuUsage" style="font-size: 24px;">--</span>%
+                </div>
+                <div>
+                    <strong>💾 Memory</strong><br>
+                    <span id="memoryUsage" style="font-size: 24px;">--</span>%
+                </div>
+                <div>
+                    <strong>🔄 Last Updated</strong><br>
+                    <span id="lastUpdate" style="font-size: 14px;">--</span>
+            </div>
+        </div>
+
             <div id="statusMessage" class="status-message"></div>
 
             <div class="toolbar">
+                <input type="text" id="searchInput" placeholder="🔍 Search files..." style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; flex: 1; max-width: 300px;">
+                <button class="btn btn-primary" onclick="performSearch()">Search</button>
                 <button class="btn btn-primary" onclick="uploadFile()">📤 Upload File</button>
                 <button class="btn btn-primary" onclick="newFolder()">📁 New Folder</button>
                 <button class="btn btn-secondary" onclick="refreshList()">🔄 Refresh</button>
             </div>
+
 
             <div class="breadcrumb" id="breadcrumb"></div>
 
@@ -518,7 +536,7 @@
 
         function loadFiles() {
             const url = `/api/browse?drive=${currentDrive}&path=${encodeURIComponent(currentPath)}`;
-            
+
             fetch(url)
                 .then(r => r.json())
                 .then(data => {
@@ -534,7 +552,7 @@
 
         function renderFiles(items) {
             const fileList = document.getElementById('fileList');
-            
+
             if (items.length === 0) {
                 fileList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No files or folders</p></div>';
                 return;
@@ -578,7 +596,7 @@
         function updateBreadcrumb() {
             const breadcrumb = document.getElementById('breadcrumb');
             let html = `<a onclick="goHome()">📀 ${currentDrive}</a>`;
-            
+
             if (currentPath) {
                 const parts = currentPath.split('/');
                 let path = '';
@@ -587,7 +605,7 @@
                     html += ` <span>/</span> <a onclick="navigateTo('${path}')">${part}</a>`;
                 });
             }
-            
+
             breadcrumb.innerHTML = html;
         }
 
@@ -672,7 +690,7 @@
                 .then(async response => {
                     const fileName = path.split('/').pop();
                     const ext = fileName.split('.').pop().toLowerCase();
-                    
+
                     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
                         document.getElementById('previewContent').innerHTML = `<img src="/api/preview?drive=${currentDrive}&path=${encodeURIComponent(path)}" class="preview-image">`;
                     } else if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(ext)) {
@@ -683,7 +701,7 @@
                         const text = await response.text();
                         document.getElementById('previewContent').innerHTML = `<div class="preview-text">${escapeHtml(text.substring(0, 10000))}</div>`;
                     }
-                    
+
                     document.getElementById('previewTitle').textContent = `Preview: ${escapeHtml(fileName)}`;
                     document.getElementById('previewModal').classList.add('show');
                 })
@@ -728,6 +746,49 @@
             const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
             return text.replace(/[&<>"']/g, m => map[m]);
         }
+
+                function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (query.length < 2) {
+                showStatus('Search query must be at least 2 characters', 'error');
+                return;
+            }
+
+        function updateSystemStats() {
+            fetch('/api/system-stats')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('cpuUsage').textContent = data.cpu_percent.toFixed(1);
+                    document.getElementById('memoryUsage').textContent = data.memory.percent.toFixed(1);
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                })
+                .catch(err => console.error('Stats update failed'));
+        }
+
+        // Update stats every 10 seconds
+        setInterval(updateSystemStats, 10000);
+        updateSystemStats(); // Initial call
+
+
+            fetch(`/api/search?drive=${currentDrive}&q=${encodeURIComponent(query)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        showStatus(data.error, 'error');
+                        return;
+                    }
+                    renderFiles(data.results);
+                    document.getElementById('breadcrumb').innerHTML = `<strong>Search Results for: "${query}"</strong> (${data.results.length} found)`;
+                })
+                .catch(err => showStatus('Search failed', 'error'));
+        }
+
+        // Allow Enter key in search
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') performSearch();
+            });
+        });
 
         // Initialize
         loadFiles();

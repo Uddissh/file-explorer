@@ -71,7 +71,7 @@ def get_file_size(size_bytes):
 def get_file_icon(filename):
     """Get appropriate icon for file type"""
     ext = Path(filename).suffix.lower()
-    
+
     if ext in PREVIEW_EXTENSIONS['images']:
         return '🖼️'
     elif ext in PREVIEW_EXTENSIONS['videos']:
@@ -90,9 +90,9 @@ def get_file_icon(filename):
 def can_preview(filename):
     """Check if file can be previewed in browser"""
     ext = Path(filename).suffix.lower()
-    all_previewable = (PREVIEW_EXTENSIONS['images'] + 
-                       PREVIEW_EXTENSIONS['videos'] + 
-                       PREVIEW_EXTENSIONS['text'] + 
+    all_previewable = (PREVIEW_EXTENSIONS['images'] +
+                       PREVIEW_EXTENSIONS['videos'] +
+                       PREVIEW_EXTENSIONS['text'] +
                        PREVIEW_EXTENSIONS['pdf'])
     return ext in all_previewable
 
@@ -112,7 +112,7 @@ def get_drive_info(drive_path):
             used = int(parts[2]) * 1024
             available = int(parts[3]) * 1024
             percent = int(parts[4].rstrip('%'))
-            
+
             return {
                 'total': get_file_size(total),
                 'used': get_file_size(used),
@@ -166,7 +166,7 @@ def index():
                 'path': drive_path,
                 'info': get_drive_info(drive_path)
             }
-    
+
     return render_template('index.html', drives=drives_info)
 
 @app.route('/api/browse', methods=['GET'])
@@ -175,22 +175,22 @@ def browse():
     """Browse files and folders"""
     drive = request.args.get('drive', 'storage_1')
     path = request.args.get('path', '')
-    
+
     # Validate drive
     if drive not in STORAGE_DRIVES:
         return jsonify({'error': 'Invalid drive'}), 400
-    
+
     base_path = STORAGE_DRIVES[drive]
     full_path = os.path.join(base_path, path) if path else base_path
-    
+
     # Security check
     if not is_safe_path(base_path, full_path):
         return jsonify({'error': 'Access denied'}), 403
-    
+
     # Check if path exists
     if not os.path.exists(full_path):
         return jsonify({'error': 'Path not found'}), 404
-    
+
     try:
         items = []
         for item in sorted(os.listdir(full_path)):
@@ -218,7 +218,7 @@ def browse():
                     })
             except (OSError, IOError) as e:
                 continue
-        
+
         return jsonify({
             'items': items,
             'path': path,
@@ -237,27 +237,27 @@ def upload_file():
     drive = request.form.get('drive', 'storage_1')
     path = request.form.get('path', '')
     file = request.files.get('file')
-    
+
     if not file:
         return jsonify({'error': 'No file provided'}), 400
-    
+
     # Validate drive
     if drive not in STORAGE_DRIVES:
         return jsonify({'error': 'Invalid drive'}), 400
-    
+
     base_path = STORAGE_DRIVES[drive]
     upload_path = os.path.join(base_path, path) if path else base_path
-    
+
     # Security check
     if not is_safe_path(base_path, upload_path):
         return jsonify({'error': 'Access denied'}), 403
-    
+
     # Create directory if needed
     os.makedirs(upload_path, exist_ok=True)
-    
+
     filename = secure_filename(file.filename)
     file_path = os.path.join(upload_path, filename)
-    
+
     try:
         file.save(file_path)
         return jsonify({
@@ -275,25 +275,25 @@ def download_file():
     """Download file"""
     drive = request.args.get('drive', 'storage_1')
     path = request.args.get('path', '')
-    
+
     if not drive or not path:
         return jsonify({'error': 'Missing parameters'}), 400
-    
+
     # Validate drive
     if drive not in STORAGE_DRIVES:
         return jsonify({'error': 'Invalid drive'}), 400
-    
+
     base_path = STORAGE_DRIVES[drive]
     file_path = os.path.join(base_path, path)
-    
+
     # Security check
     if not is_safe_path(base_path, file_path):
         return jsonify({'error': 'Access denied'}), 403
-    
+
     # Check if file exists and is a file
     if not os.path.isfile(file_path):
         return jsonify({'error': 'File not found'}), 404
-    
+
     try:
         return send_file(file_path, as_attachment=True)
     except Exception as e:
@@ -305,29 +305,108 @@ def preview_file():
     """Get file for preview"""
     drive = request.args.get('drive', 'storage_1')
     path = request.args.get('path', '')
-    
+
     if not drive or not path:
         return jsonify({'error': 'Missing parameters'}), 400
-    
+
     if drive not in STORAGE_DRIVES:
         return jsonify({'error': 'Invalid drive'}), 400
-    
+
     base_path = STORAGE_DRIVES[drive]
     file_path = os.path.join(base_path, path)
-    
+
     if not is_safe_path(base_path, file_path):
         return jsonify({'error': 'Access denied'}), 403
-    
+
     if not os.path.isfile(file_path):
         return jsonify({'error': 'File not found'}), 404
-    
+
     if not can_preview(file_path):
         return jsonify({'error': 'Preview not supported'}), 400
-    
+
     try:
         return send_file(file_path)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/search', methods=['GET'])
+@login_required
+def search():
+    """Search for files and folders"""
+    drive = request.args.get('drive', 'storage_1')
+    query = request.args.get('q', '').lower()
+    
+    if not query or len(query) < 2:
+        return jsonify({'error': 'Query too short (minimum 2 characters)'}), 400
+    
+    if drive not in STORAGE_DRIVES:
+        return jsonify({'error': 'Invalid drive'}), 400
+    
+    results = []
+    base_path = STORAGE_DRIVES[drive]
+    
+    try:
+        for root, dirs, files in os.walk(base_path):
+            # Search in filenames
+            for file in files:
+                if query in file.lower():
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, base_path)
+                    try:
+                        size = os.path.getsize(file_path)
+                        results.append({
+                            'name': file,
+                            'type': 'file',
+                            'path': relative_path,
+                            'size': get_file_size(size),
+                            'icon': get_file_icon(file),
+                        })
+                    except (OSError, IOError):
+                        pass
+            
+            # Search in folder names
+            for folder in dirs:
+                if query in folder.lower():
+                    folder_path = os.path.join(root, folder)
+                    relative_path = os.path.relpath(folder_path, base_path)
+                    results.append({
+                        'name': folder,
+                        'type': 'folder',
+                        'path': relative_path,
+                        'icon': '📁',
+                    })
+            
+            # Limit results for performance
+            if len(results) > 100:
+                break
+    except PermissionError:
+        pass
+    
+    return jsonify({'results': results[:100]})
+
+@app.route('/api/system-stats')
+@login_required
+def system_stats():
+    """Get system statistics"""
+    import psutil
+    
+    stats = {
+        'cpu_percent': psutil.cpu_percent(interval=1),
+        'memory': {
+            'total': get_file_size(psutil.virtual_memory().total),
+            'used': get_file_size(psutil.virtual_memory().used),
+            'percent': psutil.virtual_memory().percent,
+        },
+        'disk': {}
+    }
+    
+    for drive_name, drive_path in STORAGE_DRIVES.items():
+        info = get_drive_info(drive_path)
+        if info:
+            stats['disk'][drive_name] = info
+    
+    return jsonify(stats)
+
 
 @app.route('/api/delete', methods=['POST'])
 @login_required
@@ -336,19 +415,19 @@ def delete_item():
     data = request.get_json()
     drive = data.get('drive', 'storage_1')
     path = data.get('path', '')
-    
+
     if not drive or not path:
         return jsonify({'error': 'Missing parameters'}), 400
-    
+
     if drive not in STORAGE_DRIVES:
         return jsonify({'error': 'Invalid drive'}), 400
-    
+
     base_path = STORAGE_DRIVES[drive]
     item_path = os.path.join(base_path, path)
-    
+
     if not is_safe_path(base_path, item_path):
         return jsonify({'error': 'Access denied'}), 403
-    
+
     try:
         if os.path.isfile(item_path):
             os.remove(item_path)
@@ -357,7 +436,7 @@ def delete_item():
             shutil.rmtree(item_path)
         else:
             return jsonify({'error': 'Item not found'}), 404
-        
+
         return jsonify({'success': True, 'message': 'Item deleted'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -370,21 +449,21 @@ def mkdir():
     drive = data.get('drive', 'storage_1')
     path = data.get('path', '')
     folder_name = data.get('folder_name', '')
-    
+
     if not drive or not folder_name:
         return jsonify({'error': 'Missing parameters'}), 400
-    
+
     if drive not in STORAGE_DRIVES:
         return jsonify({'error': 'Invalid drive'}), 400
-    
+
     folder_name = secure_filename(folder_name)
-    
+
     base_path = STORAGE_DRIVES[drive]
     folder_path = os.path.join(base_path, path, folder_name) if path else os.path.join(base_path, folder_name)
-    
+
     if not is_safe_path(base_path, folder_path):
         return jsonify({'error': 'Access denied'}), 403
-    
+
     try:
         os.makedirs(folder_path, exist_ok=True)
         return jsonify({'success': True, 'message': 'Folder created'})
@@ -403,5 +482,5 @@ if __name__ == '__main__':
     print(f"📤 Max upload size: {get_file_size(MAX_FILE_SIZE)}")
     print(f"🌐 Access at: http://0.0.0.0:1234")
     print(f"⚠️  Change FLASK_PASSWORD in .env file!")
-    
+
     app.run(host='0.0.0.0', port=1234, debug=False)
