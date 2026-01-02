@@ -1,23 +1,19 @@
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements
+# Copy only what you need (NOT .env)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application
 COPY app.py .
 COPY templates/ templates/
-COPY .env .
+COPY static/ static/
 
-# Expose port
-EXPOSE 1234
+# Create .env with defaults if it doesn't exist
+RUN echo "FLASK_ENV=production\nFLASK_DEBUG=0" > .env.default
 
-# Run application
+EXPOSE 5000
+
 CMD ["python", "app.py"]
+
