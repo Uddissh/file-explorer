@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  file-explorer:
+    build: .
+    container_name: file-explorer
+    ports:
+      - "1234:1234"
+    volumes:
+      - /mnt/storage_1:/mnt/storage_1
+      - /mnt/storage_2:/mnt/storage_2
+      - /mnt/storage_3:/mnt/storage_3
+      - /mnt/storage_4:/mnt/storage_4
+      - /mnt/sde3_docs:/mnt/sde3_docs
+      - /mnt/sde5_docs:/mnt/sde5_docs
+    restart: always
+    environment:
+      - FLASK_PASSWORD=me

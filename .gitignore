@@ -1,0 +1,13 @@
+venv/
+env/
+*.pyc
+__pycache__/
+.env
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+/uploads/*
+!.gitkeep

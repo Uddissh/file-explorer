@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .header a {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .header a:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            padding: 0 20px;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .sidebar h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .drive-list {
+            list-style: none;
+        }
+
+        .drive-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+
+        .drive-item:hover {
+            background: #f0f0f0;
+            border-left-color: #667eea;
+        }
+
+        .drive-item.active {
+            background: #e8eaf6;
+            border-left-color: #667eea;
+            font-weight: 600;
+        }
+
+        .drive-name {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .drive-info {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        .breadcrumb {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb span {
+            color: #999;
+            margin: 0 8px;
+        }
+
+        .file-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .file-item {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-item:hover {
+            background: #f0f0f0;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .file-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .file-name {
+            font-weight: 600;
+            margin-bottom: 8px;
+            word-break: break-word;
+            min-height: 40px;
+        }
+
+        .file-info {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 10px;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .file-actions button {
+            flex: 1;
+            padding: 6px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-download {
+            background: #667eea;
+            color: white;
+        }
+
+        .action-download:hover {
+            background: #5568d3;
+        }
+
+        .action-preview {
+            background: #4caf50;
+            color: white;
+        }
+
+        .action-preview:hover {
+            background: #45a049;
+        }
+
+        .action-delete {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .action-delete:hover {
+            background: #ff5252;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .preview-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .preview-content {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 400px;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+        }
+
+        .preview-video {
+            width: 100%;
+            border-radius: 6px;
+        }
+
+        .preview-text {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .file-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .status-message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📁 File Explorer</h1>
+        <a href="/logout">Logout</a>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <h2>Storage Drives</h2>
+            <ul class="drive-list" id="driveList">
+                {% for drive_name, drive_info in drives.items() %}
+                <li class="drive-item {% if loop.first %}active{% endif %}" data-drive="{{ drive_name }}" onclick="selectDrive('{{ drive_name }}')">
+                    <span class="drive-name">📀 {{ drive_name }}</span>
+                    {% if drive_info.info %}
+                    <span class="drive-info">{{ drive_info.info.used }} / {{ drive_info.info.total }}</span>
+                    <div style="margin-top: 5px; background: #e0e0e0; height: 4px; border-radius: 2px; overflow: hidden;">
+                        <div style="background: #667eea; height: 100%; width: {{ drive_info.info.percent }}%;"></div>
+                    </div>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <div id="statusMessage" class="status-message"></div>
+
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="uploadFile()">📤 Upload File</button>
+                <button class="btn btn-primary" onclick="newFolder()">📁 New Folder</button>
+                <button class="btn btn-secondary" onclick="refreshList()">🔄 Refresh</button>
+            </div>
+
+            <div class="breadcrumb" id="breadcrumb"></div>
+
+            <div id="fileList" class="file-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔍</div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Upload File</div>
+            <input type="file" id="fileInput" class="modal-input">
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('uploadModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitUpload()">Upload</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Folder Modal -->
+    <div id="folderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">New Folder</div>
+            <input type="text" id="folderInput" class="modal-input" placeholder="Folder name" autocomplete="off">
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('folderModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitFolder()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="preview-header">
+                <div class="modal-title" id="previewTitle"></div>
+                <button class="btn btn-secondary" onclick="closeModal('previewModal')" style="padding: 8px 12px;">✕ Close</button>
+            </div>
+            <div id="previewContent" class="preview-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentDrive = 'storage_1';
+        let currentPath = '';
+
+        function selectDrive(drive) {
+            currentDrive = drive;
+            currentPath = '';
+            document.querySelectorAll('.drive-item').forEach(el => el.classList.remove('active'));
+            document.querySelector(`[data-drive="${drive}"]`).classList.add('active');
+            loadFiles();
+        }
+
+        function loadFiles() {
+            const url = `/api/browse?drive=${currentDrive}&path=${encodeURIComponent(currentPath)}`;
+            
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        showStatus(data.error, 'error');
+                        return;
+                    }
+                    renderFiles(data.items);
+                    updateBreadcrumb();
+                })
+                .catch(err => showStatus('Error loading files', 'error'));
+        }
+
+        function renderFiles(items) {
+            const fileList = document.getElementById('fileList');
+            
+            if (items.length === 0) {
+                fileList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No files or folders</p></div>';
+                return;
+            }
+
+            // Sort: folders first, then files
+            items.sort((a, b) => {
+                if (a.type === b.type) return a.name.localeCompare(b.name);
+                return a.type === 'folder' ? -1 : 1;
+            });
+
+            fileList.innerHTML = items.map(item => `
+                <div class="file-item" onclick="handleItemClick('${item.path}', '${item.type}')">
+                    <div class="file-icon">${item.icon}</div>
+                    <div class="file-name">${escapeHtml(item.name)}</div>
+                    <div class="file-info">
+                        ${item.type === 'folder' ? 'Folder' : item.size_human}
+                        <br>
+                        ${new Date(item.modified).toLocaleDateString()}
+                    </div>
+                    <div class="file-actions" onclick="event.stopPropagation();">
+                        ${item.type === 'file' ? `
+                            <button class="action-download" onclick="downloadFile('${item.path}')" title="Download">⬇️ Download</button>
+                            ${item.can_preview ? `<button class="action-preview" onclick="previewFile('${item.path}')" title="Preview">👁️ Preview</button>` : ''}
+                            <button class="action-delete" onclick="deleteItem('${item.path}')" title="Delete">🗑️ Delete</button>
+                        ` : `
+                            <button class="action-delete" onclick="deleteItem('${item.path}')" title="Delete">🗑️ Delete</button>
+                        `}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function handleItemClick(path, type) {
+            if (type === 'folder') {
+                currentPath = path;
+                loadFiles();
+            }
+        }
+
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            let html = `<a onclick="goHome()">📀 ${currentDrive}</a>`;
+            
+            if (currentPath) {
+                const parts = currentPath.split('/');
+                let path = '';
+                parts.forEach((part, i) => {
+                    path += (i === 0 ? '' : '/') + part;
+                    html += ` <span>/</span> <a onclick="navigateTo('${path}')">${part}</a>`;
+                });
+            }
+            
+            breadcrumb.innerHTML = html;
+        }
+
+        function goHome() {
+            currentPath = '';
+            loadFiles();
+        }
+
+        function navigateTo(path) {
+            currentPath = path;
+            loadFiles();
+        }
+
+        function uploadFile() {
+            document.getElementById('uploadModal').classList.add('show');
+            document.getElementById('fileInput').click();
+        }
+
+        function submitUpload() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('drive', currentDrive);
+            formData.append('path', currentPath);
+
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeModal('uploadModal');
+                if (data.success) {
+                    showStatus(`File uploaded: ${data.filename}`, 'success');
+                    loadFiles();
+                } else {
+                    showStatus(data.error, 'error');
+                }
+            })
+            .catch(err => showStatus('Upload failed', 'error'));
+        }
+
+        function newFolder() {
+            document.getElementById('folderInput').value = '';
+            document.getElementById('folderModal').classList.add('show');
+            document.getElementById('folderInput').focus();
+        }
+
+        function submitFolder() {
+            const folderName = document.getElementById('folderInput').value.trim();
+            if (!folderName) return;
+
+            fetch('/api/mkdir', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    drive: currentDrive,
+                    path: currentPath,
+                    folder_name: folderName
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeModal('folderModal');
+                if (data.success) {
+                    showStatus('Folder created', 'success');
+                    loadFiles();
+                } else {
+                    showStatus(data.error, 'error');
+                }
+            });
+        }
+
+        function downloadFile(path) {
+            window.location.href = `/api/download?drive=${currentDrive}&path=${encodeURIComponent(path)}`;
+        }
+
+        function previewFile(path) {
+            fetch(`/api/preview?drive=${currentDrive}&path=${encodeURIComponent(path)}`)
+                .then(async response => {
+                    const fileName = path.split('/').pop();
+                    const ext = fileName.split('.').pop().toLowerCase();
+                    
+                    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+                        document.getElementById('previewContent').innerHTML = `<img src="/api/preview?drive=${currentDrive}&path=${encodeURIComponent(path)}" class="preview-image">`;
+                    } else if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(ext)) {
+                        document.getElementById('previewContent').innerHTML = `<video controls class="preview-video"><source src="/api/preview?drive=${currentDrive}&path=${encodeURIComponent(path)}"></video>`;
+                    } else if (ext === 'pdf') {
+                        document.getElementById('previewContent').innerHTML = `<embed src="/api/preview?drive=${currentDrive}&path=${encodeURIComponent(path)}" type="application/pdf" style="width:100%; height:600px;">`;
+                    } else {
+                        const text = await response.text();
+                        document.getElementById('previewContent').innerHTML = `<div class="preview-text">${escapeHtml(text.substring(0, 10000))}</div>`;
+                    }
+                    
+                    document.getElementById('previewTitle').textContent = `Preview: ${escapeHtml(fileName)}`;
+                    document.getElementById('previewModal').classList.add('show');
+                })
+                .catch(err => showStatus('Cannot preview this file', 'error'));
+        }
+
+        function deleteItem(path) {
+            if (confirm(`Delete: ${path}?`)) {
+                fetch('/api/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({drive: currentDrive, path: path})
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus('Item deleted', 'success');
+                        loadFiles();
+                    } else {
+                        showStatus(data.error, 'error');
+                    }
+                });
+            }
+        }
+
+        function refreshList() {
+            loadFiles();
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        function showStatus(message, type) {
+            const el = document.getElementById('statusMessage');
+            el.textContent = message;
+            el.className = `status-message show status-${type}`;
+            setTimeout(() => el.classList.remove('show'), 4000);
+        }
+
+        function escapeHtml(text) {
+            const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Initialize
+        loadFiles();
+    </script>
+</body>
+</html>
